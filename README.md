@@ -16,6 +16,21 @@ required
 
 ![Interleaved Records Reading](diagrams/InterleavedRecordsReading.png)
 
+### Dynamic execution graph of disjointed branches to read from each topic with BigQuery dynamic destinations
+
+Dynamically build an execution graph with multiple disjointed branches based on the list of 
+kafka topics; with each topic read using the `.withTopic` method of the `KafkaIO` source and 
+`BigQueryIO` dynamic destination to write to different tables based on the input topic
+
+Example Dataflow Pipeline
+
+![Disjointed Graphs Pipeline](diagrams/ReadTopicsWithDynamicGraph.png)
+
+Example of how the records are being read in the disjointed graphs within the same pipeline
+
+![User topic records](diagrams/user_topic_records.png)
+
+![Customer topic records](diagrams/customer_topic_records.png)
 
 # Run the samples
 
@@ -42,7 +57,7 @@ mvn compile exec:java \
 ### Run on Direct Runner
 
 ```
-mvn compile exec:java -Dexec.mainClass=dev.bhupi.beam.examples.KafkaAvroExampleWithEnum \
+mvn compile exec:java -Dexec.mainClass=dev.bhupi.beam.examples.KafkaAvroExample \
 -Dexec.args=" \
     --kafkaHost=${KAFKA_HOST} \
     --kafkaSchemaRegistryUrl=${KAFKA_SCHEMA_REGISTRY} \
@@ -50,3 +65,6 @@ mvn compile exec:java -Dexec.mainClass=dev.bhupi.beam.examples.KafkaAvroExampleW
     --bigQueryProjectName=${BQ_PROJECT_ID} \
     --bigQueryDatasetName=${BQ_DATASET_NAME}" -Pdirect-runner
 ```
+
+
+
