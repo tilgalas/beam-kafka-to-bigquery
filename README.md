@@ -54,10 +54,38 @@ mvn compile exec:java \
     --bigQueryDatasetName=${BQ_DATASET_NAME}"
 ```
 
+```
+mvn compile exec:java \
+    -Dexec.mainClass=dev.bhupi.beam.examples.KafkaAvroExampleDynamicGraph \
+    -Pdataflow-runner \
+    -Dexec.args=" \
+    --runner=DataflowRunner \
+    --streaming \
+    --project=${PROJECT_ID} \
+    --region=${REGION} \
+    --gcpTempLocation=gs://${STORAGE_BUCKET}/temp \
+    --jobName=KafkaAvroExampleDynamicGraph \
+    --kafkaHost=${KAFKA_HOST} \
+    --kafkaSchemaRegistryUrl=${KAFKA_SCHEMA_REGISTRY} \
+    --topicNames=<comma_serparated_list_of_topic_names> \
+    --bigQueryProjectName=${BQ_PROJECT_ID} \
+    --bigQueryDatasetName=${BQ_DATASET_NAME}"
+```
+
 ### Run on Direct Runner
 
 ```
 mvn compile exec:java -Dexec.mainClass=dev.bhupi.beam.examples.KafkaAvroExample \
+-Dexec.args=" \
+    --kafkaHost=${KAFKA_HOST} \
+    --kafkaSchemaRegistryUrl=${KAFKA_SCHEMA_REGISTRY} \
+    --topicNames=<comma_serparated_list_of_topic_names> \
+    --bigQueryProjectName=${BQ_PROJECT_ID} \
+    --bigQueryDatasetName=${BQ_DATASET_NAME}" -Pdirect-runner
+```
+
+```
+mvn compile exec:java -Dexec.mainClass=dev.bhupi.beam.examples.KafkaAvroExampleDynamicGraph \
 -Dexec.args=" \
     --kafkaHost=${KAFKA_HOST} \
     --kafkaSchemaRegistryUrl=${KAFKA_SCHEMA_REGISTRY} \
