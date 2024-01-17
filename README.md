@@ -3,7 +3,8 @@ Example beam pipeline(s) to read from Kafka and write to BigQuery
 
 ### Read multiple Kafka topics using .withTopics KafkaIO method with BigQuery dynamic destinations
 
-Single Read multiple Kafka topics using the `.withTopics` method of `KafkaIO` source and `BigQueryIO` dynamic destination to write to different tables based on the input topic
+Consolidated read of multiple Kafka topics using the `.withTopics` method of `KafkaIO` source and 
+`BigQueryIO` dynamic destination to write to different tables based on the input topic
 
 Example Dataflow Pipeline
 
