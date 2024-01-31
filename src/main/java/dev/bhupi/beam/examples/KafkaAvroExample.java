@@ -17,6 +17,7 @@ package dev.bhupi.beam.examples;
 
 import com.google.common.collect.ImmutableMap;
 import dev.bhupi.beam.examples.common.BigQueryDynamicWriteTransform;
+import dev.bhupi.beam.examples.common.MaciekWriteToBQTransform;
 import dev.bhupi.beam.examples.common.Util.GenericRecordCoder;
 import dev.bhupi.beam.examples.common.Util.AvroGenericRecordDeserializer;
 import java.util.HashMap;
@@ -83,12 +84,8 @@ public class KafkaAvroExample {
                   }
                 }));
 
-    messages
-        .apply(
-            "BQ Write", new BigQueryDynamicWriteTransform(
-                options.getBigQueryProjectName(),
-                options.getBigQueryDatasetName()));
+    messages.apply(new MaciekWriteToBQTransform(options.getBigQueryProjectName(), options.getBigQueryDatasetName()));
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 }
