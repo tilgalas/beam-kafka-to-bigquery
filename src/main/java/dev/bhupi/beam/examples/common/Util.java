@@ -78,29 +78,6 @@ public class Util {
     }
   }
 
-  public static TableSchema convertAvroSchemaToBigQuerySchema(Schema avroSchema) {
-    TableSchema tableSchema = new TableSchema();
-    tableSchema.setFields(new ArrayList<>());
-
-    for (Schema.Field field : avroSchema.getFields()) {
-      Schema schema = field.schema();
-      TableFieldSchema tableFieldSchema;
-
-      if (schema.getType() == Schema.Type.UNION) {
-        tableFieldSchema = processUnionType(field, schema.getType(), schema.getTypes());
-      } else {
-        tableFieldSchema = new TableFieldSchema()
-            .setName(field.name())
-            .setType(mapAvroTypeToBigQueryType(schema.getType()))
-            .setMode(mapAvroModeToBigQueryMode(schema));
-      }
-
-      tableSchema.getFields().add(tableFieldSchema);
-    }
-
-    return tableSchema;
-  }
-
   public static String mapAvroTypeToBigQueryType(Schema.Type avroType) {
     switch (avroType) {
       case STRING:

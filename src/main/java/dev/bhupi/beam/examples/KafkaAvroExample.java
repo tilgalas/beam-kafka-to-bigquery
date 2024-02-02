@@ -15,8 +15,6 @@
  */
 package dev.bhupi.beam.examples;
 
-import static dev.bhupi.beam.examples.common.Util.convertAvroSchemaToBigQuerySchema;
-
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.collect.ImmutableMap;
@@ -31,6 +29,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
@@ -40,7 +39,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.VerifyException;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,7 +97,9 @@ public class KafkaAvroExample {
               OutputReceiver<KV<String, TableRow>> out) {
             Schema avroSchema = Objects.requireNonNull(element.getKV().getValue())
                 .getSchema();
-            TableSchema bigQuerySchema = convertAvroSchemaToBigQuerySchema(avroSchema);
+
+            TableSchema bigQuerySchema =
+                BigQueryUtils.toTableSchema(AvroUtils.toBeamSchema(avroSchema));
 
             TableRow tableRow = BigQueryUtils.convertGenericRecordToTableRow(
                 element.getKV().getValue(),

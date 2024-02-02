@@ -15,8 +15,6 @@
  */
 package dev.bhupi.beam.examples;
 
-import static dev.bhupi.beam.examples.common.Util.convertAvroSchemaToBigQuerySchema;
-
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import dev.bhupi.beam.examples.common.BigQueryDynamicWriteTransform;
@@ -27,6 +25,7 @@ import java.util.Objects;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.kafka.ConfluentSchemaRegistryDeserializerProvider;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
@@ -93,7 +92,9 @@ public class KafkaAvroExampleDynamicGraph {
                     OutputReceiver<KV<String, TableRow>> out) {
                   Schema avroSchema = Objects.requireNonNull(element.getKV().getValue())
                       .getSchema();
-                  TableSchema bigQuerySchema = convertAvroSchemaToBigQuerySchema(avroSchema);
+
+                  TableSchema bigQuerySchema =
+                      BigQueryUtils.toTableSchema(AvroUtils.toBeamSchema(avroSchema));
 
                   TableRow tableRow = BigQueryUtils.convertGenericRecordToTableRow(
                       element.getKV().getValue(),
