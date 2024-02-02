@@ -49,7 +49,7 @@ mvn compile exec:java \
     --jobName=KafkaAvroExample \
     --kafkaHost=${KAFKA_HOST} \
     --kafkaSchemaRegistryUrl=${KAFKA_SCHEMA_REGISTRY} \
-    --topicNames=<comma_serparated_list_of_topic_names> \
+    --topicNames=${KAFKA_TOPIC_NAMES} \
     --bigQueryProjectName=${BQ_PROJECT_ID} \
     --bigQueryDatasetName=${BQ_DATASET_NAME}"
 ```
@@ -67,7 +67,7 @@ mvn compile exec:java \
     --jobName=KafkaAvroExampleDynamicGraph \
     --kafkaHost=${KAFKA_HOST} \
     --kafkaSchemaRegistryUrl=${KAFKA_SCHEMA_REGISTRY} \
-    --topicNames=<comma_serparated_list_of_topic_names> \
+    --topicNames=${KAFKA_TOPIC_NAMES} \
     --bigQueryProjectName=${BQ_PROJECT_ID} \
     --bigQueryDatasetName=${BQ_DATASET_NAME}"
 ```
@@ -79,7 +79,7 @@ mvn compile exec:java -Dexec.mainClass=dev.bhupi.beam.examples.KafkaAvroExample 
 -Dexec.args=" \
     --kafkaHost=${KAFKA_HOST} \
     --kafkaSchemaRegistryUrl=${KAFKA_SCHEMA_REGISTRY} \
-    --topicNames=<comma_serparated_list_of_topic_names> \
+    --topicNames=${KAFKA_TOPIC_NAMES} \
     --bigQueryProjectName=${BQ_PROJECT_ID} \
     --bigQueryDatasetName=${BQ_DATASET_NAME}" -Pdirect-runner
 ```
@@ -89,7 +89,7 @@ mvn compile exec:java -Dexec.mainClass=dev.bhupi.beam.examples.KafkaAvroExampleD
 -Dexec.args=" \
     --kafkaHost=${KAFKA_HOST} \
     --kafkaSchemaRegistryUrl=${KAFKA_SCHEMA_REGISTRY} \
-    --topicNames=<comma_serparated_list_of_topic_names> \
+    --topicNames=${KAFKA_TOPIC_NAMES} \
     --bigQueryProjectName=${BQ_PROJECT_ID} \
     --bigQueryDatasetName=${BQ_DATASET_NAME}" -Pdirect-runner
 ```
