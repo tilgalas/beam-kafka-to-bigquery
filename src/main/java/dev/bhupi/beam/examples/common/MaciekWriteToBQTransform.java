@@ -2,9 +2,12 @@ package dev.bhupi.beam.examples.common;
 
 import com.google.api.services.bigquery.model.TableSchema;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.*;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
+import org.apache.beam.sdk.io.kafka.KafkaRecordCoder;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -29,31 +32,35 @@ public class MaciekWriteToBQTransform extends PTransform<PCollection<KafkaRecord
 
     @Override
     public WriteResult expand(PCollection<KafkaRecord<String, GenericRecord>> input) {
-        PCollection<GenericRecord> genericRecords = input.apply("extract GenericRecord",
-                MapElements.into(new TypeDescriptor<GenericRecord>() {})
-                        .via(kr -> Objects.requireNonNull(kr).getKV().getValue()));
 
-
-        return genericRecords.apply(BigQueryIO.writeGenericRecords().
-                to(new DynamicDestinations<GenericRecord, GenericRecord>() {
+        return input.apply(BigQueryIO.<KafkaRecord<String, GenericRecord>>write()
+                .to(new DynamicDestinations<KafkaRecord<String, GenericRecord>, KafkaRecord<String, GenericRecord>>() {
                     @Override
-                    public GenericRecord getDestination(@Nullable @UnknownKeyFor @Initialized ValueInSingleWindow<GenericRecord> element) {
+                    public KafkaRecord<String, GenericRecord> getDestination(@Nullable @UnknownKeyFor @Initialized ValueInSingleWindow<KafkaRecord<String, GenericRecord>> element) {
                         return element.getValue();
                     }
 
                     @Override
-                    public @UnknownKeyFor @NonNull @Initialized TableDestination getTable(GenericRecord destination) {
+                    public @UnknownKeyFor @NonNull @Initialized TableDestination getTable(KafkaRecord<String, GenericRecord> destination) {
+                        // maybe some massaging is needed to make sure that the topic name forms a valid table name in BQ
+                        String topic = destination.getTopic();
                         return new TableDestination(
-                                String.format("%s:%s.%s", bqProject, bqDataset, "maciektable"),
-                                "maciek table"
+                                String.format("%s:%s.%s", bqProject, bqDataset, topic),
+                                String.format("table for topic %s", topic)
                         );
                     }
 
                     @Override
-                    public @Nullable @UnknownKeyFor @Initialized TableSchema getSchema(GenericRecord destination) {
-                        return BigQueryUtils.toTableSchema(AvroUtils.toBeamSchema(destination.getSchema()));
+                    public @Nullable @UnknownKeyFor @Initialized TableSchema getSchema(KafkaRecord<String, GenericRecord> destination) {
+                        return BigQueryUtils.toTableSchema(AvroUtils.toBeamSchema(destination.getKV().getValue().getSchema()));
+                    }
+
+                    @Override
+                    public @Nullable @UnknownKeyFor @Initialized Coder<KafkaRecord<String, GenericRecord>> getDestinationCoder() {
+                        return KafkaRecordCoder.of(StringUtf8Coder.of(), Util.GenericRecordCoder.of());
                     }
                 })
+                .withAvroFormatFunction(avroWriteRequest -> avroWriteRequest.getElement().getKV().getValue())
                 .withMethod(BigQueryIO.Write.Method.STORAGE_WRITE_API)
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
                 .withTriggeringFrequency(Duration.standardSeconds(1L))
