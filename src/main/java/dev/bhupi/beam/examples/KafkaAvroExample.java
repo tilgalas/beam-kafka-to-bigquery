@@ -15,8 +15,6 @@
  */
 package dev.bhupi.beam.examples;
 
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.collect.ImmutableMap;
 import dev.bhupi.beam.examples.common.BigQueryDynamicWriteTransform;
 import dev.bhupi.beam.examples.common.Util.GenericRecordCoder;
@@ -25,19 +23,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
 import org.apache.beam.sdk.io.kafka.KafkaRecordCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
@@ -90,23 +84,6 @@ public class KafkaAvroExample {
                 }));
 
     messages
-        .apply("Convert KafkaRecord to BQ TableRow", ParDo.of(new DoFn<KafkaRecord<String,
-            GenericRecord>, KV<String, TableRow>>() {
-          @ProcessElement
-          public void processElement(@Element KafkaRecord<String, GenericRecord> element,
-              OutputReceiver<KV<String, TableRow>> out) {
-            Schema avroSchema = Objects.requireNonNull(element.getKV().getValue())
-                .getSchema();
-
-            TableSchema bigQuerySchema =
-                BigQueryUtils.toTableSchema(AvroUtils.toBeamSchema(avroSchema));
-
-            TableRow tableRow = BigQueryUtils.convertGenericRecordToTableRow(
-                element.getKV().getValue(),
-                bigQuerySchema);
-            out.output(KV.of(element.getKV().getKey(), tableRow));
-          }
-        }))
         .apply(
             "BQ Write", new BigQueryDynamicWriteTransform(
                 options.getBigQueryProjectName(),
