@@ -45,7 +45,7 @@ public class Util {
   public static final Logger LOG = LoggerFactory.getLogger(Util.class);
 
   public static class AvroGenericRecordDeserializer extends
-      AbstractKafkaAvroDeserializer implements Deserializer<GenericRecord> {
+      AbstractKafkaAvroDeserializer implements Deserializer<GenericRecordWithTopic> {
 
     @Override
     public void configure(Map<String, ?> configs, boolean isKey) {
@@ -53,8 +53,8 @@ public class Util {
     }
 
     @Override
-    public GenericRecord deserialize(String s, byte[] bytes) {
-      return (GenericRecord) this.deserialize(bytes);
+    public GenericRecordWithTopic deserialize(String topic, byte[] bytes) {
+      return GenericRecordWithTopic.of(topic, (GenericRecord) this.deserialize(bytes));
     }
 
     @Override
