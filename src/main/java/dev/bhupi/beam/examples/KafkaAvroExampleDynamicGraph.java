@@ -64,7 +64,7 @@ public class KafkaAvroExampleDynamicGraph {
 
           messages
               .apply(
-                  "Extract Records",
+                  "Extract Records:" + topicName,
                   ParDo.of(
                       new DoFn<KafkaRecord<String, GenericRecord>, KafkaRecord<String, GenericRecord>>() {
                         @ProcessElement
@@ -80,7 +80,7 @@ public class KafkaAvroExampleDynamicGraph {
 
           messages
               .apply(
-                  "BQ Write", new BigQueryDynamicWriteTransform(
+                  "BQ Write:" + topicName, new BigQueryDynamicWriteTransform(
                       options.getBigQueryProjectName(),
                       options.getBigQueryDatasetName()));
 

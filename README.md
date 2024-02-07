@@ -43,6 +43,7 @@ mvn compile exec:java \
     -Dexec.args=" \
     --runner=DataflowRunner \
     --streaming \
+    --enableStreamingEngine \
     --project=${PROJECT_ID} \
     --region=${REGION} \
     --gcpTempLocation=gs://${STORAGE_BUCKET}/temp \
@@ -61,6 +62,7 @@ mvn compile exec:java \
     -Dexec.args=" \
     --runner=DataflowRunner \
     --streaming \
+    --enableStreamingEngine \
     --project=${PROJECT_ID} \
     --region=${REGION} \
     --gcpTempLocation=gs://${STORAGE_BUCKET}/temp \
