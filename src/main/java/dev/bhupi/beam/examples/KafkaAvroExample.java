@@ -17,15 +17,12 @@ package dev.bhupi.beam.examples;
 
 import com.google.common.collect.ImmutableMap;
 import dev.bhupi.beam.examples.common.GenericRecordSchemaRegistryCoder;
-import dev.bhupi.beam.examples.common.GenericRecordWithTopic;
-import dev.bhupi.beam.examples.common.MaciekWriteToBQTransform;
-import dev.bhupi.beam.examples.common.Util.AvroGenericRecordDeserializer;
-import org.apache.avro.generic.GenericRecord;
+import dev.bhupi.beam.examples.common.VersionedGenericRecord;
+import dev.bhupi.beam.examples.common.BigQueryDynamicWriteTransform;
+import dev.bhupi.beam.examples.common.VersionedGenericRecordKafkaAvroDeserializer;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.kafka.DeserializerProvider;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
 import org.apache.beam.sdk.io.kafka.KafkaRecordCoder;
@@ -34,10 +31,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.nullness.qual.KeyForBottom;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,17 +47,17 @@ public class KafkaAvroExample {
     KafkaAvroExampleOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(KafkaAvroExampleOptions.class);
     final Pipeline p = Pipeline.create(options);
-    Coder<GenericRecordWithTopic> genericRecordCoder = new GenericRecordSchemaRegistryCoder(options.getKafkaSchemaRegistryUrl(), false);
-    p.getCoderRegistry().registerCoderForClass(GenericRecordWithTopic.class, genericRecordCoder);
+    Coder<VersionedGenericRecord> genericRecordCoder = new GenericRecordSchemaRegistryCoder(options.getKafkaSchemaRegistryUrl(), false);
+    p.getCoderRegistry().registerCoderForClass(VersionedGenericRecord.class, genericRecordCoder);
 
     final Map<String, Object> consumerConfig = new HashMap<>();
     consumerConfig.put("auto.offset.reset", "earliest");
 
     List<String> topicNames = options.getTopicNames();
 
-    PCollection<KafkaRecord<String, GenericRecordWithTopic>> messages =
+    PCollection<KafkaRecord<String, VersionedGenericRecord>> messages =
         p.apply("Read KafkaTopics",
-                KafkaIO.<String, GenericRecordWithTopic>read()
+                KafkaIO.<String, VersionedGenericRecord>read()
                     .withBootstrapServers(
                         options.getKafkaHost())
                     .withTopics(topicNames)
@@ -72,7 +65,7 @@ public class KafkaAvroExample {
                     .withConsumerConfigUpdates(
                         ImmutableMap.of("schema.registry.url", options.getKafkaSchemaRegistryUrl()))
                     .withKeyDeserializer(StringDeserializer.class)
-                    .withValueDeserializer(AvroGenericRecordDeserializer.class)
+                    .withValueDeserializer(VersionedGenericRecordKafkaAvroDeserializer.class)
             )
             .setCoder(KafkaRecordCoder.of(StringUtf8Coder.of(), genericRecordCoder));
 
@@ -80,10 +73,10 @@ public class KafkaAvroExample {
         .apply(
             "Extract Records",
             ParDo.of(
-                new DoFn<KafkaRecord<String, GenericRecordWithTopic>, Void>() {
+                new DoFn<KafkaRecord<String, VersionedGenericRecord>, Void>() {
                   @ProcessElement
                   public void processElement(
-                      @Element KafkaRecord<String, GenericRecordWithTopic> element) {
+                      @Element KafkaRecord<String, VersionedGenericRecord> element) {
                     LOG.info(String.valueOf(
                         Objects.requireNonNull(element.getKV().getValue()).getRecord().getSchema()));
                     LOG.info(element.getKV().getKey());
@@ -91,7 +84,7 @@ public class KafkaAvroExample {
                   }
                 }));
 
-    messages.apply(new MaciekWriteToBQTransform(options.getBigQueryProjectName(), options.getBigQueryDatasetName(), options.getKafkaSchemaRegistryUrl()));
+    messages.apply(new BigQueryDynamicWriteTransform(options.getBigQueryProjectName(), options.getBigQueryDatasetName(), options.getKafkaSchemaRegistryUrl()));
 
     p.run().waitUntilFinish();
   }

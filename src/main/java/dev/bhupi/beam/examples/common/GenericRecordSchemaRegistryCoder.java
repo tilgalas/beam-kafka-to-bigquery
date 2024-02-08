@@ -1,43 +1,37 @@
 package dev.bhupi.beam.examples.common;
 
 import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
-import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class GenericRecordSchemaRegistryCoder extends CustomCoder<GenericRecordWithTopic> {
+public class GenericRecordSchemaRegistryCoder extends CustomCoder<VersionedGenericRecord> {
 
   private static final Logger LOG = LoggerFactory.getLogger(GenericRecordSchemaRegistryCoder.class);
+  private static final StringUtf8Coder STRING_UTF_8_CODER = StringUtf8Coder.of();
+  private static final ByteArrayCoder BYTE_ARRAY_CODER = ByteArrayCoder.of();
 
   private final String schemaRegistryUrl;
   private final boolean isKey;
-  private final StringUtf8Coder stringUtf8Coder = StringUtf8Coder.of();
-  private final ByteArrayCoder byteArrayCoder = ByteArrayCoder.of();
 
   // it seems that the serializer and deserializer classes are thread-safe
-  private static final AtomicReference<KafkaAvroDeserializer> deserializerDelegate =
-      new AtomicReference<>();
+  private static final AtomicReference<VersionedGenericRecordKafkaAvroDeserializer>
+      deserializerDelegate = new AtomicReference<>();
   private static final AtomicReference<KafkaAvroSerializer> serializerDelegate =
       new AtomicReference<>();
 
@@ -77,11 +71,11 @@ public class GenericRecordSchemaRegistryCoder extends CustomCoder<GenericRecordW
     return t;
   }
 
-  private static KafkaAvroDeserializer getOrInitDeserializer(
+  private static VersionedGenericRecordKafkaAvroDeserializer getOrInitDeserializer(
       Supplier<Map<String, Object>> configs, boolean isKey) {
     return getOrInitGeneric(
         "deserializer",
-        KafkaAvroDeserializer::new,
+        VersionedGenericRecordKafkaAvroDeserializer::new,
         deserializerDelegate,
         deserializer -> deserializer::configure,
         configs,
@@ -99,7 +93,7 @@ public class GenericRecordSchemaRegistryCoder extends CustomCoder<GenericRecordW
         isKey);
   }
 
-  private KafkaAvroDeserializer getDeserializer() {
+  private VersionedGenericRecordKafkaAvroDeserializer getDeserializer() {
     return getOrInitDeserializer(this::configProps, isKey);
   }
 
@@ -108,36 +102,29 @@ public class GenericRecordSchemaRegistryCoder extends CustomCoder<GenericRecordW
   }
 
   @Override
-  public void encode(
-      GenericRecordWithTopic value, @UnknownKeyFor @NonNull @Initialized OutputStream outStream)
-      throws @UnknownKeyFor @NonNull @Initialized CoderException,
-          @UnknownKeyFor @NonNull @Initialized IOException {
+  public void encode(VersionedGenericRecord value, @NonNull OutputStream outStream)
+      throws IOException {
     KafkaAvroSerializer serializer = getSerializer();
     byte[] bytes = serializer.serialize(value.getTopic(), value.getRecord());
 
     Counter c =
         Metrics.counter(GenericRecordSchemaRegistryCoder.class, "genericRecordBytesEncoded");
     c.inc(bytes.length);
-    stringUtf8Coder.encode(value.getTopic(), outStream);
-    byteArrayCoder.encode(bytes, outStream);
+    STRING_UTF_8_CODER.encode(value.getTopic(), outStream);
+    BYTE_ARRAY_CODER.encode(bytes, outStream);
   }
 
   @Override
-  public GenericRecordWithTopic decode(@UnknownKeyFor @NonNull @Initialized InputStream inStream)
-      throws @UnknownKeyFor @NonNull @Initialized CoderException,
-          @UnknownKeyFor @NonNull @Initialized IOException {
-    String topic = stringUtf8Coder.decode(inStream);
-    byte[] bytes = byteArrayCoder.decode(inStream);
+  public VersionedGenericRecord decode(@NonNull InputStream inStream) throws IOException {
+    String topic = STRING_UTF_8_CODER.decode(inStream);
+    byte[] bytes = BYTE_ARRAY_CODER.decode(inStream);
     Counter c =
         Metrics.counter(GenericRecordSchemaRegistryCoder.class, "genericRecordBytesDecoded");
     c.inc(bytes.length);
-
-    KafkaAvroDeserializer deserializer = getDeserializer();
-    return GenericRecordWithTopic.of(topic, (GenericRecord) deserializer.deserialize(topic, bytes));
+    VersionedGenericRecordKafkaAvroDeserializer deserializer = getDeserializer();
+    return deserializer.deserialize(topic, bytes);
   }
 
   @Override
-  public void verifyDeterministic() {
-    LOG.info(Arrays.toString(Thread.currentThread().getStackTrace()));
-  }
+  public void verifyDeterministic() {}
 }

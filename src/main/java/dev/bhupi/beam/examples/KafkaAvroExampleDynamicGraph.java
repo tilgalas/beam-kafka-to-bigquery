@@ -16,13 +16,10 @@
 package dev.bhupi.beam.examples;
 
 import dev.bhupi.beam.examples.common.BigQueryDynamicWriteTransform;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import dev.bhupi.beam.examples.common.VersionedGenericRecord;
+import dev.bhupi.beam.examples.common.VersionedGenericRecordKafkaAvroDeserializer;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.kafka.ConfluentSchemaRegistryDeserializerProvider;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -32,6 +29,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 public class KafkaAvroExampleDynamicGraph {
 
@@ -49,28 +51,25 @@ public class KafkaAvroExampleDynamicGraph {
 
     topicNames.forEach(
         topicName -> {
-          PCollection<KafkaRecord<String, GenericRecord>> messages =
+          PCollection<KafkaRecord<String, VersionedGenericRecord>> messages =
               p.apply("Read KafkaTopic:" + topicName,
-                  KafkaIO.<String, GenericRecord>read()
+                  KafkaIO.<String, VersionedGenericRecord>read()
                       .withBootstrapServers(
                           options.getKafkaHost())
                       .withTopic(topicName)
                       .withConsumerConfigUpdates(consumerConfig)
                       .withKeyDeserializer(StringDeserializer.class)
-                      .withValueDeserializer(
-                          ConfluentSchemaRegistryDeserializerProvider.of(options.getKafkaSchemaRegistryUrl(),
-                              topicName + "-value"))
+                      .withValueDeserializer(VersionedGenericRecordKafkaAvroDeserializer.class)
               );
 
           messages
               .apply(
                   "Extract Records:" + topicName,
                   ParDo.of(
-                      new DoFn<KafkaRecord<String, GenericRecord>, KafkaRecord<String, GenericRecord>>() {
+                      new DoFn<KafkaRecord<String, VersionedGenericRecord>, Void>() {
                         @ProcessElement
                         public void processElement(
-                            @Element KafkaRecord<String, GenericRecord> element,
-                            OutputReceiver<KafkaRecord<String, GenericRecord>> out) {
+                            @Element KafkaRecord<String, GenericRecord> element) {
                           LOG.info(String.valueOf(
                               Objects.requireNonNull(element.getKV().getValue()).getSchema()));
                           LOG.info(element.getKV().getKey());
@@ -82,7 +81,8 @@ public class KafkaAvroExampleDynamicGraph {
               .apply(
                   "BQ Write:" + topicName, new BigQueryDynamicWriteTransform(
                       options.getBigQueryProjectName(),
-                      options.getBigQueryDatasetName()));
+                      options.getBigQueryDatasetName(),
+                      options.getKafkaSchemaRegistryUrl()));
 
         }
     );
