@@ -186,6 +186,12 @@
       <version>${auto-value.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-extensions-avro</artifactId>
+      <version>${beam.version}</version>
+    </dependency>
+
   </dependencies>
 
 

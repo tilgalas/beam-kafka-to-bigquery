@@ -47,4 +47,9 @@ public interface KafkaAvroExampleOptions extends PipelineOptions {
   String getBigQueryDatasetName();
 
   void setBigQueryDatasetName(String value);
+
+  @Description("Output directory for the Avro files")
+  String getAvroOutput();
+
+  void setAvroOutput(String value);
 }
