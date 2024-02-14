@@ -166,6 +166,12 @@
       <scope>provided</scope>
     </dependency>
 
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>32.1.2-jre</version>
+    </dependency>
+
     <!-- The DirectRunner is needed for unit tests. -->
     <dependency>
       <groupId>org.apache.beam</groupId>

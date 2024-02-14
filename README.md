@@ -3,23 +3,23 @@ Example beam pipeline(s) to read from Kafka and write to BigQuery
 
 ### Read multiple Kafka topics using .withTopics KafkaIO method with BigQuery dynamic destinations
 
-Consolidated read of multiple Kafka topics using the `.withTopics` method of `KafkaIO` source and 
+Consolidated read of multiple Kafka topics using the `.withTopics` method of `KafkaIO` source and
 `BigQueryIO` dynamic destination to write to different tables based on the input topic
 
 Example Dataflow Pipeline
 
 ![Conslidated Pipeline](diagrams/ReadMultipleKafkaTopics_using_withTopics.png)
 
-Example of how the records are being read in the same branch interleaved b/w topics; there are just two topics in this example, however it  can be expanded to multiple 
-topics as 
-required 
+Example of how the records are being read in the same branch interleaved b/w topics; there are just two topics in this example, however it  can be expanded to multiple
+topics as
+required
 
 ![Interleaved Records Reading](diagrams/InterleavedRecordsReading.png)
 
 ### Dynamic execution graph of disjointed branches to read from each topic with BigQuery dynamic destinations
 
-Dynamically build an execution graph with multiple disjointed branches based on the list of 
-kafka topics; with each topic read using the `.withTopic` method of the `KafkaIO` source and 
+Dynamically build an execution graph with multiple disjointed branches based on the list of
+kafka topics; with each topic read using the `.withTopic` method of the `KafkaIO` source and
 `BigQueryIO` dynamic destination to write to different tables based on the input topic
 
 Example Dataflow Pipeline
@@ -96,5 +96,18 @@ mvn compile exec:java -Dexec.mainClass=dev.bhupi.beam.examples.KafkaAvroExampleD
     --bigQueryDatasetName=${BQ_DATASET_NAME}" -Pdirect-runner
 ```
 
+### Dynamic Destinations pipeline
 
+The diagram below shows how Beam coders used by `PTransforms` as well
+as `DynamicDetinations` can access Schema Registry to efficiently
+encode Avro records. While running the pipeline records are first read
+from kafka topic, then optionally transformed in a Beam pipeline using
+user defined functions, to be finally written into a dynamically
+determined table, which can be created on demand and whose schema
+matches the schema of the record. The schemas for the records are
+managed by the Schema registry and don't have to be known in advance
+when constructing the pipeline, they can evolve as well - each new
+version of a schema will result in a creation of a corresponding
+BigQuery table.
 
+![DynamicDestinations pipeline diagram](diagrams/KafkaToBQWithSchemaRegistry.svg)

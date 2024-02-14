@@ -15,25 +15,27 @@
  */
 package dev.bhupi.beam.examples;
 
+import com.google.common.base.Preconditions;
 import dev.bhupi.beam.examples.common.BigQueryDynamicWriteTransform;
 import dev.bhupi.beam.examples.common.VersionedGenericRecord;
 import dev.bhupi.beam.examples.common.VersionedGenericRecordKafkaAvroDeserializer;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 
 public class KafkaAvroExampleDynamicGraph {
 
@@ -52,40 +54,44 @@ public class KafkaAvroExampleDynamicGraph {
     topicNames.forEach(
         topicName -> {
           PCollection<KafkaRecord<String, VersionedGenericRecord>> messages =
-              p.apply("Read KafkaTopic:" + topicName,
+              p.apply(
+                  "Read KafkaTopic:" + topicName,
                   KafkaIO.<String, VersionedGenericRecord>read()
-                      .withBootstrapServers(
-                          options.getKafkaHost())
+                      .withBootstrapServers(options.getKafkaHost())
                       .withTopic(topicName)
                       .withConsumerConfigUpdates(consumerConfig)
                       .withKeyDeserializer(StringDeserializer.class)
-                      .withValueDeserializer(VersionedGenericRecordKafkaAvroDeserializer.class)
-              );
+                      .withValueDeserializer(VersionedGenericRecordKafkaAvroDeserializer.class));
 
-          messages
-              .apply(
-                  "Extract Records:" + topicName,
-                  ParDo.of(
-                      new DoFn<KafkaRecord<String, VersionedGenericRecord>, Void>() {
-                        @ProcessElement
-                        public void processElement(
-                            @Element KafkaRecord<String, GenericRecord> element) {
-                          LOG.info(String.valueOf(
+          messages.apply(
+              "Extract Records:" + topicName,
+              ParDo.of(
+                  new DoFn<KafkaRecord<String, VersionedGenericRecord>, Void>() {
+                    @ProcessElement
+                    public void processElement(
+                        @Element KafkaRecord<String, GenericRecord> element) {
+                      LOG.info(
+                          String.valueOf(
                               Objects.requireNonNull(element.getKV().getValue()).getSchema()));
-                          LOG.info(element.getKV().getKey());
-                          LOG.info(Objects.requireNonNull(element.getKV().getValue()).toString());
-                        }
-                      }));
+                      LOG.info(element.getKV().getKey());
+                      LOG.info(Objects.requireNonNull(element.getKV().getValue()).toString());
+                    }
+                  }));
 
-          messages
-              .apply(
-                  "BQ Write:" + topicName, new BigQueryDynamicWriteTransform(
-                      options.getBigQueryProjectName(),
-                      options.getBigQueryDatasetName(),
-                      options.getKafkaSchemaRegistryUrl()));
+          PCollection<VersionedGenericRecord> records =
+              messages.apply(
+                  MapElements.into(new TypeDescriptor<VersionedGenericRecord>() {})
+                      .via(
+                          kafkaRecord ->
+                              Preconditions.checkNotNull(kafkaRecord).getKV().getValue()));
 
-        }
-    );
+          records.apply(
+              "BQ Write:" + topicName,
+              new BigQueryDynamicWriteTransform(
+                  options.getBigQueryProjectName(),
+                  options.getBigQueryDatasetName(),
+                  options.getKafkaSchemaRegistryUrl()));
+        });
 
     p.run();
   }
