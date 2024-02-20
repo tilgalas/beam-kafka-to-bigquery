@@ -7,6 +7,7 @@ import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientExcept
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Map;
 import org.apache.avro.Schema;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -26,26 +27,43 @@ public class VersionedAvroSchemaCoder extends CustomCoder<VersionedAvroSchema> {
   private final String schemaRegistryUrl;
   private final Integer identityMapCapacity;
 
-  public VersionedAvroSchemaCoder(String schemaRegistryUrl, @Nullable Integer identityMapCapacity) {
+  private final Map<String, ?> configs;
+
+  private final Map<String, String> httpHeaders;
+
+  public VersionedAvroSchemaCoder(
+      String schemaRegistryUrl,
+      @Nullable Integer identityMapCapacity,
+      @Nullable Map<String, ?> configs,
+      @Nullable Map<String, String> httpHeaders) {
     this.schemaRegistryUrl = schemaRegistryUrl;
     this.identityMapCapacity = identityMapCapacity == null ? 10 : identityMapCapacity;
+    this.configs = configs;
+    this.httpHeaders = httpHeaders;
   }
 
   private static SchemaRegistryClient getOrInitSchemaRegistryClient(
-      String schemaRegistryUrl, int identityMapCapacity) {
+      String schemaRegistryUrl,
+      int identityMapCapacity,
+      Map<String, ?> configs,
+      Map<String, String> httpHeaders) {
     return schemaRegistryClient.get(
         () -> {
           LOG.info(
-              "creating new CachedSchemaRegistryClient with url {} and schema capacity {}",
+              "creating new CachedSchemaRegistryClient with url: {}, schema capacity: {}, configs:"
+                  + " {}, httpHeaders: {}",
               schemaRegistryUrl,
-              identityMapCapacity);
-          return new CachedSchemaRegistryClient(schemaRegistryUrl, identityMapCapacity);
+              identityMapCapacity,
+              configs,
+              httpHeaders);
+          return new CachedSchemaRegistryClient(
+              schemaRegistryUrl, identityMapCapacity, configs, httpHeaders);
         });
   }
 
   private Integer getSchemaId(String subject, Schema schema) throws IOException {
     SchemaRegistryClient client =
-        getOrInitSchemaRegistryClient(schemaRegistryUrl, identityMapCapacity);
+        getOrInitSchemaRegistryClient(schemaRegistryUrl, identityMapCapacity, configs, httpHeaders);
     try {
       return client.getId(subject, schema);
     } catch (RestClientException e) {
@@ -64,7 +82,7 @@ public class VersionedAvroSchemaCoder extends CustomCoder<VersionedAvroSchema> {
 
   private Schema getSchemaBySubjectAndId(String subject, Integer schemaId) throws IOException {
     SchemaRegistryClient client =
-        getOrInitSchemaRegistryClient(schemaRegistryUrl, identityMapCapacity);
+        getOrInitSchemaRegistryClient(schemaRegistryUrl, identityMapCapacity, configs, httpHeaders);
     try {
       return client.getBySubjectAndId(subject, schemaId);
     } catch (RestClientException e) {

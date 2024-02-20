@@ -15,14 +15,15 @@ class ConfluentVersionedDynamicDestinations
 
   private final String bqProject;
   private final String bqDataset;
-  private final String schemaRegistryUrl;
+  private final Coder<VersionedAvroSchema> versionedAvroSchemaCoder;
 
   public ConfluentVersionedDynamicDestinations(
-      String bqProject, String bqDataset, String schemaRegistryUrl) {
+      String bqProject, String bqDataset, Coder<VersionedAvroSchema> versionedAvroSchemaCoder) {
 
     this.bqProject = bqProject;
     this.bqDataset = bqDataset;
-    this.schemaRegistryUrl = schemaRegistryUrl;
+
+    this.versionedAvroSchemaCoder = versionedAvroSchemaCoder;
   }
 
   @Override
@@ -56,6 +57,6 @@ class ConfluentVersionedDynamicDestinations
 
   @Override
   public Coder<VersionedAvroSchema> getDestinationCoder() {
-    return new VersionedAvroSchemaCoder(schemaRegistryUrl, null);
+    return versionedAvroSchemaCoder;
   }
 }

@@ -57,9 +57,25 @@ public class KafkaAvroExample {
     KafkaAvroExampleOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(KafkaAvroExampleOptions.class);
     final Pipeline p = Pipeline.create(options);
+
+    ImmutableMap<String, Object> confluentSchemaRegistryConfig =
+        ImmutableMap.of(
+            "basic.auth.credentials.source",
+            "USER_INFO",
+            "schema.registry.basic.auth.user.info",
+            String.format(
+                "%s:%s",
+                options.getSchemaRegistryBasicAuthUser(),
+                options.getSchemaRegistryBasicAuthPassword()));
+
     Coder<VersionedGenericRecord> genericRecordCoder =
-        new VersionedGenericRecordCoder(options.getKafkaSchemaRegistryUrl(), false);
+        new VersionedGenericRecordCoder(
+            options.getKafkaSchemaRegistryUrl(), false, confluentSchemaRegistryConfig);
     p.getCoderRegistry().registerCoderForClass(VersionedGenericRecord.class, genericRecordCoder);
+
+    Coder<VersionedAvroSchema> versionedAvroSchemaCoder =
+        new VersionedAvroSchemaCoder(
+            options.getKafkaSchemaRegistryUrl(), null, confluentSchemaRegistryConfig, null);
 
     final Map<String, Object> consumerConfig = new HashMap<>();
     consumerConfig.put("auto.offset.reset", "earliest");
@@ -75,6 +91,7 @@ public class KafkaAvroExample {
                     .withConsumerConfigUpdates(consumerConfig)
                     .withConsumerConfigUpdates(
                         ImmutableMap.of("schema.registry.url", options.getKafkaSchemaRegistryUrl()))
+                    .withConsumerConfigUpdates(confluentSchemaRegistryConfig)
                     .withKeyDeserializer(StringDeserializer.class)
                     .withValueDeserializer(VersionedGenericRecordKafkaAvroDeserializer.class))
             .setCoder(KafkaRecordCoder.of(StringUtf8Coder.of(), genericRecordCoder));
@@ -105,7 +122,7 @@ public class KafkaAvroExample {
         new BigQueryDynamicWriteTransform(
             options.getBigQueryProjectName(),
             options.getBigQueryDatasetName(),
-            options.getKafkaSchemaRegistryUrl()));
+            versionedAvroSchemaCoder));
     records
         // to write the records into a file we need some windowing
         .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))))
@@ -121,8 +138,7 @@ public class KafkaAvroExample {
                                 .getVersion(),
                             genericRecord.getRecord().getSchema()))
                 // its coder
-                .withDestinationCoder(
-                    new VersionedAvroSchemaCoder(options.getKafkaSchemaRegistryUrl(), null))
+                .withDestinationCoder(versionedAvroSchemaCoder)
                 // first fn transforms the VersionedGenericRecord into a GenericRecord which is what
                 // the Avro sink expects
                 // second fn maps the destination computed in the by function above into an

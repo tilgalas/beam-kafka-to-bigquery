@@ -52,4 +52,12 @@ public interface KafkaAvroExampleOptions extends PipelineOptions {
   String getAvroOutput();
 
   void setAvroOutput(String value);
+
+  String getSchemaRegistryBasicAuthUser();
+
+  void setSchemaRegistryBasicAuthUser(String value);
+
+  String getSchemaRegistryBasicAuthPassword();
+
+  void setSchemaRegistryBasicAuthPassword(String value);
 }

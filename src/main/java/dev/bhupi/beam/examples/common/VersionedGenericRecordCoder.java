@@ -7,6 +7,7 @@ import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -17,6 +18,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,24 +40,35 @@ public class VersionedGenericRecordCoder extends CustomCoder<VersionedGenericRec
 
   private final String schemaRegistryUrl;
   private final boolean isKey;
+  private final Map<String, ?> configs;
 
   // it seems that the serializer and deserializer classes are thread-safe
   private static final LazySupplier<VersionedGenericRecordKafkaAvroDeserializer>
       deserializerDelegate = new LazySupplier<>();
   private static final LazySupplier<KafkaAvroSerializer> serializerDelegate = new LazySupplier<>();
 
-  public VersionedGenericRecordCoder(String schemaRegistryUrl, boolean isKey) {
+  public VersionedGenericRecordCoder(
+      String schemaRegistryUrl, boolean isKey, @Nullable Map<String, ?> configs) {
     this.schemaRegistryUrl = schemaRegistryUrl;
     this.isKey = isKey;
+    this.configs = configs;
   }
 
   private Map<String, Object> configProps() {
+    ImmutableMap<String, Object> overrides =
+        ImmutableMap.of(
+            AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG,
+            schemaRegistryUrl,
+            AbstractKafkaAvroSerDeConfig.AUTO_REGISTER_SCHEMAS,
+            false);
 
-    return ImmutableMap.of(
-        AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG,
-        schemaRegistryUrl,
-        AbstractKafkaAvroSerDeConfig.AUTO_REGISTER_SCHEMAS,
-        false);
+    if (configs == null) {
+      return overrides;
+    }
+
+    Map<String, Object> res = new HashMap<>(configs);
+    res.putAll(overrides);
+    return ImmutableMap.copyOf(res);
   }
 
   private static <T> T getOrInitGeneric(

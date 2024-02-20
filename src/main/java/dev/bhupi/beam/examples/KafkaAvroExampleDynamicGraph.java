@@ -16,15 +16,15 @@
 package dev.bhupi.beam.examples;
 
 import com.google.common.base.Preconditions;
-import dev.bhupi.beam.examples.common.BigQueryDynamicWriteTransform;
-import dev.bhupi.beam.examples.common.VersionedGenericRecord;
-import dev.bhupi.beam.examples.common.VersionedGenericRecordKafkaAvroDeserializer;
+import com.google.common.collect.ImmutableMap;
+import dev.bhupi.beam.examples.common.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -44,6 +44,18 @@ public class KafkaAvroExampleDynamicGraph {
   public static void main(String[] args) {
     KafkaAvroExampleOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(KafkaAvroExampleOptions.class);
+
+    Coder<VersionedAvroSchema> versionedAvroSchemaCoder =
+        new VersionedAvroSchemaCoder(
+            options.getKafkaSchemaRegistryUrl(),
+            null,
+            ImmutableMap.of(
+                "basic.auth.credentials.source",
+                "USER_INFO",
+                "schema.registry.basic.auth.user.info",
+                "user1:password"),
+            null);
+
     final Pipeline p = Pipeline.create(options);
 
     final Map<String, Object> consumerConfig = new HashMap<>();
@@ -90,7 +102,7 @@ public class KafkaAvroExampleDynamicGraph {
               new BigQueryDynamicWriteTransform(
                   options.getBigQueryProjectName(),
                   options.getBigQueryDatasetName(),
-                  options.getKafkaSchemaRegistryUrl()));
+                  versionedAvroSchemaCoder));
         });
 
     p.run();

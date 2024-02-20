@@ -1,6 +1,7 @@
 package dev.bhupi.beam.examples.common;
 
 import com.google.common.base.Preconditions;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -12,13 +13,13 @@ public class BigQueryDynamicWriteTransform
     extends PTransform<@NonNull PCollection<VersionedGenericRecord>, @NonNull WriteResult> {
   private final String bqProject;
   private final String bqDataset;
-  private final String schemaRegistryUrl;
+  private final Coder<VersionedAvroSchema> versionedAvroSchemaCoder;
 
   public BigQueryDynamicWriteTransform(
-      String bqProject, String bqDataset, String schemaRegistryUrl) {
+      String bqProject, String bqDataset, Coder<VersionedAvroSchema> versionedAvroSchemaCoder) {
     this.bqProject = bqProject;
     this.bqDataset = bqDataset;
-    this.schemaRegistryUrl = schemaRegistryUrl;
+    this.versionedAvroSchemaCoder = versionedAvroSchemaCoder;
   }
 
   @Override
@@ -26,7 +27,9 @@ public class BigQueryDynamicWriteTransform
   public WriteResult expand(PCollection<VersionedGenericRecord> input) {
     return input.apply(
         BigQueryIO.<VersionedGenericRecord>write()
-            .to(new ConfluentVersionedDynamicDestinations(bqProject, bqDataset, schemaRegistryUrl))
+            .to(
+                new ConfluentVersionedDynamicDestinations(
+                    bqProject, bqDataset, versionedAvroSchemaCoder))
             .withAvroFormatFunction(
                 avroWriteRequest -> {
                   VersionedGenericRecord versionedGenericRecord =
