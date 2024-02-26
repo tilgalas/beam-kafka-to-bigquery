@@ -60,4 +60,8 @@ public interface KafkaAvroExampleOptions extends PipelineOptions {
   String getSchemaRegistryBasicAuthPassword();
 
   void setSchemaRegistryBasicAuthPassword(String value);
+
+  String getSchemaRegistryCaCertLocation();
+
+  void setSchemaRegistryCaCertLocation(String value);
 }
